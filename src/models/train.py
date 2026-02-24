@@ -30,7 +30,7 @@ from xgboost import XGBClassifier
 try:
     from catboost import CatBoostClassifier
     CATBOOST_AVAILABLE = True
-except ImportError:
+except (ImportError, ValueError):
     CATBOOST_AVAILABLE = False
 from src.utils import logger, CustomException
 
@@ -92,10 +92,6 @@ class ModelTrainer:
                 eval_metric='logloss',
                 use_label_encoder=False
             ),
-            "CatBoost": CatBoostClassifier(
-                random_state=self.random_state,
-                verbose=False
-            ),
             "KNeighbors": KNeighborsClassifier(
                 n_neighbors=5
             ),
@@ -107,6 +103,13 @@ class ModelTrainer:
                 n_estimators=100
             )
         }
+
+        # CatBoost is optional — not compatible with NumPy 2.x
+        if CATBOOST_AVAILABLE:
+            models["CatBoost"] = CatBoostClassifier(
+                random_state=self.random_state,
+                verbose=False
+            )
         
         return models
     
