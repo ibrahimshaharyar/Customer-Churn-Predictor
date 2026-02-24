@@ -70,8 +70,13 @@ if __name__ == "__main__":
     print("1. Division by zero error")
     print("2. File not found error")
     print("3. Skip exception tests")
-    
-    choice = input("\nEnter choice (1-3): ").strip()
+
+    # Auto-skip in CI environments (no interactive terminal)
+    if not sys.stdin.isatty():
+        print("\n[CI Mode] No interactive terminal detected — auto-selecting option 3 (skip)")
+        choice = "3"
+    else:
+        choice = input("\nEnter choice (1-3): ").strip()
     
     if choice == "1":
         test_custom_exception()
