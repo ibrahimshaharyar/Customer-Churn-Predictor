@@ -308,12 +308,14 @@ async def predict_batch(customers: List[CustomerData]):
 # Run
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
+    import os
     import uvicorn
+    port = int(os.environ.get("PORT", 8000))
     print("\n" + "=" * 80)
     print("🚀 Starting Banking Customer Churn Prediction API")
     print("=" * 80)
-    print("\n📍 API: http://localhost:8000")
-    print("📖 Docs: http://localhost:8000/docs")
-    print("📊 Dashboard: http://localhost:8000")
+    print(f"\n📍 API: http://localhost:{port}")
+    print(f"📖 Docs: http://localhost:{port}/docs")
+    print(f"📊 Dashboard: http://localhost:{port}")
     print("=" * 80)
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=port)
