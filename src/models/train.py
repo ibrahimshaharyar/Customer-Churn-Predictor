@@ -27,7 +27,11 @@ from sklearn.ensemble import (
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from xgboost import XGBClassifier
-from catboost import CatBoostClassifier
+try:
+    from catboost import CatBoostClassifier
+    CATBOOST_AVAILABLE = True
+except ImportError:
+    CATBOOST_AVAILABLE = False
 from src.utils import logger, CustomException
 
 

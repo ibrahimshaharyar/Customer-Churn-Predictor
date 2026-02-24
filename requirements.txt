@@ -9,7 +9,8 @@ imbalanced-learn==0.12.3
 
 # Gradient Boosting Libraries
 xgboost==2.1.3
-catboost==1.2.7
+# catboost removed: no version supports NumPy 2.x (binary incompatibility)
+# CatBoost is optional in train.py — prediction API uses sklearn Gradient Boosting
 
 # FastAPI & Web Server
 fastapi==0.104.1
