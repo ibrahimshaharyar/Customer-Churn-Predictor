@@ -1,0 +1,85 @@
+[2026-02-12 14:48:50] churn_pipeline - INFO - ================================================================================
+[2026-02-12 14:48:50] churn_pipeline - INFO - Banking Customer Churn Prediction Pipeline - Logging Initialized
+[2026-02-12 14:48:50] churn_pipeline - INFO - Log file: logs/churn_pipeline_20260212_144850.log
+[2026-02-12 14:48:50] churn_pipeline - INFO - ================================================================================
+[2026-02-12 14:48:52] churn_pipeline - INFO - DataIngestion initialized with path: data/raw/Churn_Modelling.csv
+[2026-02-12 14:48:52] churn_pipeline - INFO - ================================================================================
+[2026-02-12 14:48:52] churn_pipeline - INFO - STARTING DATA INGESTION PIPELINE
+[2026-02-12 14:48:52] churn_pipeline - INFO - ================================================================================
+[2026-02-12 14:48:52] churn_pipeline - INFO - Loading data from: data/raw/Churn_Modelling.csv
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Data loaded successfully. Shape: (10000, 14)
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Columns: ['RowNumber', 'CustomerId', 'Surname', 'CreditScore', 'Geography', 'Gender', 'Age', 'Tenure', 'Balance', 'NumOfProducts', 'HasCrCard', 'IsActiveMember', 'EstimatedSalary', 'Exited']
+[2026-02-12 14:48:52] churn_pipeline - INFO - Validating data schema...
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Schema validation passed - all required columns present
+[2026-02-12 14:48:52] churn_pipeline - INFO - Performing data quality checks...
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Total rows: 10000
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Total columns: 14
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Duplicate rows: 0
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ No missing values found
+[2026-02-12 14:48:52] churn_pipeline - INFO - ================================================================================
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✅ DATA INGESTION COMPLETED SUCCESSFULLY
+[2026-02-12 14:48:52] churn_pipeline - INFO - ================================================================================
+[2026-02-12 14:48:52] churn_pipeline - INFO - DataPreprocessor initialized
+[2026-02-12 14:48:52] churn_pipeline - INFO - ================================================================================
+[2026-02-12 14:48:52] churn_pipeline - INFO - STARTING DATA PREPROCESSING PIPELINE
+[2026-02-12 14:48:52] churn_pipeline - INFO - ================================================================================
+[2026-02-12 14:48:52] churn_pipeline - INFO - Dropping unnecessary columns: ['RowNumber', 'CustomerId', 'Surname']
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Dropped 3 columns
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Remaining columns: ['CreditScore', 'Geography', 'Gender', 'Age', 'Tenure', 'Balance', 'NumOfProducts', 'HasCrCard', 'IsActiveMember', 'EstimatedSalary', 'Exited']
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ New shape: (10000, 11)
+[2026-02-12 14:48:52] churn_pipeline - INFO - Checking for missing values...
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ No missing values found
+[2026-02-12 14:48:52] churn_pipeline - INFO - Validating processed data...
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ All validation checks passed
+[2026-02-12 14:48:52] churn_pipeline - INFO - Saving processed data to: data/processed/churn_cleaned.csv
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Processed data saved successfully
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Saved 10000 rows, 11 columns
+[2026-02-12 14:48:52] churn_pipeline - INFO - ================================================================================
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✅ DATA PREPROCESSING COMPLETED SUCCESSFULLY
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✅ Processed data saved to: data/processed/churn_cleaned.csv
+[2026-02-12 14:48:52] churn_pipeline - INFO - ================================================================================
+[2026-02-12 14:48:52] churn_pipeline - INFO - FeatureEngineer initialized (test_size=0.2, random_state=42)
+[2026-02-12 14:48:52] churn_pipeline - INFO - ================================================================================
+[2026-02-12 14:48:52] churn_pipeline - INFO - STARTING FEATURE ENGINEERING PIPELINE
+[2026-02-12 14:48:52] churn_pipeline - INFO - ================================================================================
+[2026-02-12 14:48:52] churn_pipeline - INFO - Encoding categorical variables...
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Geography encoded: {'France': np.int64(0), 'Germany': np.int64(1), 'Spain': np.int64(2)}
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Gender encoded: {'Female': np.int64(0), 'Male': np.int64(1)}
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Categorical encoding complete
+[2026-02-12 14:48:52] churn_pipeline - INFO - Splitting features and target...
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Features (X) shape: (10000, 10)
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Target (y) shape: (10000,)
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Feature columns: ['CreditScore', 'Geography', 'Gender', 'Age', 'Tenure', 'Balance', 'NumOfProducts', 'HasCrCard', 'IsActiveMember', 'EstimatedSalary']
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Target distribution:
+Exited
+0    7963
+1    2037
+Name: count, dtype: int64
+[2026-02-12 14:48:52] churn_pipeline - INFO - Creating train/test split (test_size=0.2)...
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Training set: 8000 samples
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Test set: 2000 samples
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Train target distribution:
+Exited
+0    6370
+1    1630
+Name: count, dtype: int64
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Test target distribution:
+Exited
+0    1593
+1     407
+Name: count, dtype: int64
+[2026-02-12 14:48:52] churn_pipeline - INFO - Scaling features with StandardScaler...
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Training set scaled: (8000, 10)
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Test set scaled: (2000, 10)
+[2026-02-12 14:48:52] churn_pipeline - INFO - Saving feature data...
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Saved X_train to data/features/X_train.csv
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Saved X_test to data/features/X_test.csv
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Saved y_train to data/features/y_train.csv
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Saved y_test to data/features/y_test.csv
+[2026-02-12 14:48:52] churn_pipeline - INFO - Saving preprocessing artifacts...
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Saved scaler to artifacts/preprocessors/scaler.pkl
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Saved Geography encoder to artifacts/preprocessors/label_encoder_geo.pkl
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✓ Saved Gender encoder to artifacts/preprocessors/label_encoder_gender.pkl
+[2026-02-12 14:48:52] churn_pipeline - INFO - ================================================================================
+[2026-02-12 14:48:52] churn_pipeline - INFO - ✅ FEATURE ENGINEERING COMPLETED SUCCESSFULLY
+[2026-02-12 14:48:52] churn_pipeline - INFO - ================================================================================

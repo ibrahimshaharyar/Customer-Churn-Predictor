@@ -1,0 +1,22 @@
+[2026-02-12 15:25:50] churn_pipeline - INFO - ================================================================================
+[2026-02-12 15:25:50] churn_pipeline - INFO - Banking Customer Churn Prediction Pipeline - Logging Initialized
+[2026-02-12 15:25:50] churn_pipeline - INFO - Log file: logs/churn_pipeline_20260212_152550.log
+[2026-02-12 15:25:50] churn_pipeline - INFO - ================================================================================
+[2026-02-12 15:25:50] churn_pipeline - INFO - ChurnPredictor initialized with model: Gradient_Boosting
+[2026-02-12 15:25:50] churn_pipeline - INFO - Initializing ChurnPredictor...
+[2026-02-12 15:25:51] churn_pipeline - INFO - ✓ Model loaded: Gradient_Boosting
+[2026-02-12 15:25:51] churn_pipeline - INFO - Loading preprocessing artifacts...
+[2026-02-12 15:25:51] churn_pipeline - INFO - ✓ Scaler loaded
+[2026-02-12 15:25:51] churn_pipeline - INFO - ✓ Geography encoder loaded
+[2026-02-12 15:25:51] churn_pipeline - INFO - ✓ Gender encoder loaded
+[2026-02-12 15:25:51] churn_pipeline - INFO - ✅ ChurnPredictor initialized successfully
+[2026-02-12 15:25:51] churn_pipeline - INFO - Making prediction...
+[2026-02-12 15:25:51] churn_pipeline - INFO - Preprocessing input data...
+[2026-02-12 15:25:51] churn_pipeline - INFO - Input shape: (1, 10)
+[2026-02-12 15:25:51] churn_pipeline - INFO - ✓ Geography encoded
+[2026-02-12 15:25:51] churn_pipeline - INFO - ✓ Gender encoded
+[2026-02-12 15:25:51] churn_pipeline - INFO - ✓ Features scaled
+[2026-02-12 15:25:51] churn_pipeline - INFO - ✅ Preprocessing complete. Output shape: (1, 10)
+[2026-02-12 15:25:51] churn_pipeline - INFO - ✅ Prediction complete
+[2026-02-12 15:25:51] churn_pipeline - INFO -    Predictions: [1]
+[2026-02-12 15:25:51] churn_pipeline - INFO -    Churn probabilities: ['57.87%']

@@ -1,0 +1,4 @@
+[2026-02-12 15:17:52] churn_pipeline - INFO - ================================================================================
+[2026-02-12 15:17:52] churn_pipeline - INFO - Banking Customer Churn Prediction Pipeline - Logging Initialized
+[2026-02-12 15:17:52] churn_pipeline - INFO - Log file: logs/churn_pipeline_20260212_151752.log
+[2026-02-12 15:17:52] churn_pipeline - INFO - ================================================================================
