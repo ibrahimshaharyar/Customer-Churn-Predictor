@@ -1,7 +1,0 @@
-[2026-02-11 19:12:31] churn_pipeline - INFO - ================================================================================
-[2026-02-11 19:12:31] churn_pipeline - INFO - Banking Customer Churn Prediction Pipeline - Logging Initialized
-[2026-02-11 19:12:31] churn_pipeline - INFO - Log file: logs/churn_pipeline_20260211_191231.log
-[2026-02-11 19:12:31] churn_pipeline - INFO - ================================================================================
-[2026-02-11 19:12:31] churn_pipeline - INFO - ✓ Testing INFO level - General information
-[2026-02-11 19:12:31] churn_pipeline - WARNING - ✓ Testing WARNING level - Warning messages
-[2026-02-11 19:12:31] churn_pipeline - ERROR - ✓ Testing ERROR level - Error messages
