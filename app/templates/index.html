@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChurnGuard — Banking Customer Churn Analytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --surface: #111827;
+      --surface2: #1a2236;
+      --border: rgba(255,255,255,0.07);
+      --accent: #6366f1;
+      --accent2: #8b5cf6;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --text: #f1f5f9;
+      --muted: #64748b;
+      --radius: 16px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,14,26,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+    }
+    .nav-brand {
+      font-size: 1.25rem; font-weight: 800;
+      background: linear-gradient(135deg, #6366f1, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+    .nav-brand span { font-weight: 300; opacity: 0.7; }
+    .nav-tabs { display: flex; gap: 0.25rem; }
+    .nav-tab {
+      border: none; background: none; color: var(--muted);
+      font-family: inherit; font-size: 0.9rem; font-weight: 500;
+      padding: 0.5rem 1.25rem; border-radius: 8px;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .nav-tab:hover { color: var(--text); background: var(--surface); }
+    .nav-tab.active { color: var(--text); background: var(--surface2); }
+    .nav-badge {
+      display: inline-block; background: var(--accent);
+      color: white; font-size: 0.65rem; font-weight: 700;
+      padding: 2px 6px; border-radius: 20px; margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    /* ── PAGES ── */
+    .page { display: none; max-width: 1280px; margin: 0 auto; padding: 2.5rem 2rem; }
+    .page.active { display: block; }
+
+    /* ── SECTION HEADERS ── */
+    .section-header { margin-bottom: 1.5rem; }
+    .section-header h2 {
+      font-size: 1.6rem; font-weight: 700;
+      background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .section-header p { color: var(--muted); margin-top: 0.25rem; font-size: 0.9rem; }
+
+    /* ── STAT CARDS ── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem; margin-bottom: 2rem;
+    }
+    @media (max-width: 900px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--accent-color, linear-gradient(90deg, #6366f1, #8b5cf6));
+    }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+    .stat-card .label { font-size: 0.78rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-card .value { font-size: 2.2rem; font-weight: 800; margin: 0.5rem 0 0; }
+    .stat-card .sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+
+    /* ── CHART GRID ── */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem; margin-bottom: 2rem;
+    }
+    .chart-grid.two-col { grid-template-columns: repeat(2, 1fr); }
+    @media (max-width: 900px) { .chart-grid, .chart-grid.two-col { grid-template-columns: 1fr; } }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+    }
+    .chart-card h3 { font-size: 0.9rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1.25rem; }
+    .chart-wrap { position: relative; height: 240px; }
+    .chart-wrap.tall { height: 300px; }
+
+    /* ── MODEL TABLE ── */
+    .model-section { margin-bottom: 2rem; }
+    .model-table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    thead { background: var(--surface2); }
+    th {
+      padding: 0.85rem 1.25rem; text-align: left;
+      font-weight: 600; color: var(--muted); font-size: 0.78rem;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    td { padding: 0.85rem 1.25rem; border-top: 1px solid var(--border); }
+    tr.best-row td { background: rgba(99,102,241,0.08); }
+    .metric-bar {
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .bar-track { flex: 1; height: 6px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #6366f1, #8b5cf6); }
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+    }
+    .badge-best { background: rgba(99,102,241,0.2); color: #a5b4fc; }
+    .badge-high { background: rgba(239,68,68,0.15); color: #fca5a5; }
+    .badge-med  { background: rgba(245,158,11,0.15); color: #fcd34d; }
+    .badge-low  { background: rgba(34,197,94,0.15);  color: #86efac; }
+
+    /* ── PREDICT PAGE ── */
+    .predict-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .predict-grid { grid-template-columns: 1fr; } }
+
+    .form-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+    }
+    .form-card h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 1.5rem; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .form-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+    .form-group label { font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+    .form-group input, .form-group select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: inherit; font-size: 0.9rem;
+      padding: 0.65rem 1rem;
+      outline: none; transition: border-color 0.2s;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+    .form-group select option { background: var(--surface2); }
+
+    .slider-group { margin-bottom: 1rem; }
+    .slider-label {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 0.4rem;
+    }
+    .slider-label span:first-child { font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+    .slider-label .slider-val { font-size: 0.95rem; font-weight: 700; color: var(--accent); }
+    input[type=range] {
+      width: 100%; -webkit-appearance: none; appearance: none;
+      height: 6px; border-radius: 99px;
+      background: var(--surface2); outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 18px; height: 18px;
+      border-radius: 50%; background: var(--accent); cursor: pointer;
+      box-shadow: 0 0 8px rgba(99,102,241,0.5);
+    }
+
+    .toggle-group { display: flex; gap: 0.5rem; }
+    .toggle-btn {
+      flex: 1; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--muted);
+      border-radius: 10px; padding: 0.6rem;
+      font-family: inherit; font-size: 0.85rem; font-weight: 500;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .toggle-btn.selected { background: var(--accent); border-color: var(--accent); color: white; }
+
+    .btn-predict {
+      width: 100%; padding: 1rem;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none; border-radius: 12px;
+      color: white; font-family: inherit; font-size: 1rem; font-weight: 700;
+      cursor: pointer; margin-top: 1.5rem;
+      transition: all 0.2s; letter-spacing: 0.02em;
+    }
+    .btn-predict:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(99,102,241,0.4); }
+    .btn-predict:active { transform: translateY(0); }
+    .btn-predict:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* ── RESULT CARD ── */
+    .result-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      position: sticky; top: 84px;
+    }
+    .result-placeholder {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; text-align: center;
+      min-height: 400px; color: var(--muted);
+    }
+    .result-placeholder .icon { font-size: 3.5rem; margin-bottom: 1rem; opacity: 0.4; }
+    .result-placeholder p { font-size: 0.9rem; max-width: 200px; }
+
+    .result-content { display: none; }
+    .result-verdict {
+      text-align: center; padding: 2rem 1rem;
+      border-radius: 12px; margin-bottom: 1.5rem;
+    }
+    .result-verdict.churn { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); }
+    .result-verdict.stay  { background: rgba(34,197,94,0.1);  border: 1px solid rgba(34,197,94,0.2); }
+    .verdict-icon { font-size: 3rem; margin-bottom: 0.75rem; }
+    .verdict-label {
+      font-size: 1.6rem; font-weight: 800; letter-spacing: -0.5px;
+    }
+    .verdict-label.churn { color: var(--danger); }
+    .verdict-label.stay  { color: var(--success); }
+    .verdict-msg { font-size: 0.85rem; color: var(--muted); margin-top: 0.4rem; }
+
+    .prob-section { margin-bottom: 1.5rem; }
+    .prob-section h4 { font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; }
+    .prob-track { height: 14px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
+    .prob-fill { height: 100%; border-radius: 99px; transition: width 0.8s cubic-bezier(0.34,1.56,0.64,1); }
+    .prob-fill.churn { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+    .prob-fill.stay  { background: linear-gradient(90deg, #22c55e, #16a34a); }
+    .prob-labels { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--muted); margin-top: 0.35rem; }
+
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.5rem; }
+    .meta-item {
+      background: var(--surface2);
+      border-radius: 10px; padding: 0.85rem 1rem;
+    }
+    .meta-item .key { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+    .meta-item .val { font-size: 1rem; font-weight: 700; margin-top: 0.2rem; }
+
+    /* ── LOADING ── */
+    .spinner {
+      display: none; width: 24px; height: 24px;
+      border: 3px solid rgba(255,255,255,0.2);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── FADE IN ── */
+    .fade-in { animation: fadeIn 0.4s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">Churn<span>Guard</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+    <button class="nav-tab" onclick="switchTab('predict')">🔮 Predict<span class="nav-badge">AI</span></button>
+  </div>
+  <div style="width:140px;"></div>
+</nav>
+
+<!-- ══════════════ DASHBOARD PAGE ══════════════ -->
+<div id="page-dashboard" class="page active">
+  <div class="section-header">
+    <h2>Customer Churn Analytics</h2>
+    <p>Exploratory data analysis of 10,000 banking customers across France, Germany, and Spain</p>
+  </div>
+
+  <!-- STAT CARDS -->
+  <div class="stat-grid">
+    <div class="stat-card" style="--accent-color: linear-gradient(90deg,#6366f1,#8b5cf6)">
+      <div class="label">Total Customers</div>
+      <div class="value" id="stat-total">—</div>
+      <div class="sub">Dataset size</div>
+    </div>
+    <div class="stat-card" style="--accent-color: linear-gradient(90deg,#ef4444,#f97316)">
+      <div class="label">Churn Rate</div>
+      <div class="value" id="stat-churn">—</div>
+      <div class="sub" id="stat-churned-count">customers churned</div>
+    </div>
+    <div class="stat-card" style="--accent-color: linear-gradient(90deg,#22c55e,#10b981)">
+      <div class="label">Retention Rate</div>
+      <div class="value" id="stat-stay">—</div>
+      <div class="sub" id="stat-stayed-count">customers retained</div>
+    </div>
+    <div class="stat-card" style="--accent-color: linear-gradient(90deg,#f59e0b,#eab308)">
+      <div class="label">Countries Covered</div>
+      <div class="value" id="stat-countries">3</div>
+      <div class="sub">France · Germany · Spain</div>
+    </div>
+  </div>
+
+  <!-- ROW 1: 3 charts -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Churn Distribution</h3>
+      <div class="chart-wrap"><canvas id="churnChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Customers by Geography</h3>
+      <div class="chart-wrap"><canvas id="geoChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Churn Rate by Country (%)</h3>
+      <div class="chart-wrap"><canvas id="geoChurnChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ROW 2: 3 charts -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Age Distribution</h3>
+      <div class="chart-wrap"><canvas id="ageChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Gender Split</h3>
+      <div class="chart-wrap"><canvas id="genderChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Active vs. Inactive Members</h3>
+      <div class="chart-wrap"><canvas id="activeChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- BALANCE -->
+  <div style="margin-bottom:2rem;">
+    <div class="chart-card">
+      <h3>Account Balance Distribution</h3>
+      <div class="chart-wrap tall"><canvas id="balanceChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- MODEL PERFORMANCE TABLE -->
+  <div class="model-section">
+    <div class="section-header">
+      <h2>Model Performance Comparison</h2>
+      <p>All 8 classifiers trained on the same dataset with SMOTE balancing — ranked by ROC-AUC</p>
+    </div>
+    <div class="model-table-wrap">
+      <table id="modelTable">
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Accuracy</th>
+            <th>Precision</th>
+            <th>Recall</th>
+            <th>F1 Score</th>
+            <th>ROC-AUC</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="modelTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PREDICT PAGE ══════════════ -->
+<div id="page-predict" class="page">
+  <div class="section-header">
+    <h2>Churn Prediction</h2>
+    <p>Enter customer details to predict churn probability using our Gradient Boosting model</p>
+  </div>
+
+  <div class="predict-grid">
+    <!-- FORM -->
+    <div class="form-card">
+      <h2>Customer Profile</h2>
+
+      <!-- Credit Score -->
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Credit Score</span>
+          <span class="slider-val" id="val-credit">650</span>
+        </div>
+        <input type="range" id="CreditScore" min="300" max="850" value="650"
+          oninput="document.getElementById('val-credit').textContent=this.value" />
+      </div>
+
+      <!-- Age -->
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Age</span>
+          <span class="slider-val" id="val-age">35</span>
+        </div>
+        <input type="range" id="Age" min="18" max="92" value="35"
+          oninput="document.getElementById('val-age').textContent=this.value" />
+      </div>
+
+      <!-- Tenure -->
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Tenure (years)</span>
+          <span class="slider-val" id="val-tenure">5</span>
+        </div>
+        <input type="range" id="Tenure" min="0" max="10" value="5"
+          oninput="document.getElementById('val-tenure').textContent=this.value" />
+      </div>
+
+      <!-- Num Products -->
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Number of Products</span>
+          <span class="slider-val" id="val-products">1</span>
+        </div>
+        <input type="range" id="NumOfProducts" min="1" max="4" value="1"
+          oninput="document.getElementById('val-products').textContent=this.value" />
+      </div>
+
+      <!-- Geography & Gender -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>Geography</label>
+          <select id="Geography">
+            <option value="France">🇫🇷 France</option>
+            <option value="Germany">🇩🇪 Germany</option>
+            <option value="Spain">🇪🇸 Spain</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Gender</label>
+          <select id="Gender">
+            <option value="Female">Female</option>
+            <option value="Male">Male</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Balance & Salary -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>Balance ($)</label>
+          <input type="number" id="Balance" value="0" min="0" step="1000" placeholder="e.g. 83807" />
+        </div>
+        <div class="form-group">
+          <label>Est. Salary ($)</label>
+          <input type="number" id="EstimatedSalary" value="75000" min="0" step="1000" placeholder="e.g. 75000" />
+        </div>
+      </div>
+
+      <!-- Has Credit Card -->
+      <div style="margin-bottom:1rem;">
+        <div style="font-size:0.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:0.5rem;">Has Credit Card</div>
+        <div class="toggle-group">
+          <button class="toggle-btn selected" id="cc-yes" onclick="toggleCard('cc','HasCrCard',1)">✓ Yes</button>
+          <button class="toggle-btn" id="cc-no"  onclick="toggleCard('cc','HasCrCard',0)">✗ No</button>
+        </div>
+      </div>
+
+      <!-- Is Active -->
+      <div style="margin-bottom:1rem;">
+        <div style="font-size:0.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:0.5rem;">Active Member</div>
+        <div class="toggle-group">
+          <button class="toggle-btn selected" id="am-yes" onclick="toggleCard('am','IsActiveMember',1)">✓ Yes</button>
+          <button class="toggle-btn" id="am-no"  onclick="toggleCard('am','IsActiveMember',0)">✗ No</button>
+        </div>
+      </div>
+
+      <!-- Hidden inputs for toggles -->
+      <input type="hidden" id="HasCrCard" value="1" />
+      <input type="hidden" id="IsActiveMember" value="1" />
+
+      <button class="btn-predict" id="btn-predict" onclick="submitPrediction()">
+        <span id="btn-text">🔮 Predict Churn Risk</span>
+        <div class="spinner" id="btn-spinner"></div>
+      </button>
+    </div>
+
+    <!-- RESULT -->
+    <div class="result-panel">
+      <div id="result-placeholder" class="result-placeholder">
+        <div class="icon">🎯</div>
+        <p>Fill in the customer profile and click Predict</p>
+      </div>
+      <div id="result-content" class="result-content fade-in">
+        <div id="verdict-card" class="result-verdict">
+          <div class="verdict-icon" id="verdict-icon">—</div>
+          <div class="verdict-label" id="verdict-label">—</div>
+          <div class="verdict-msg" id="verdict-msg">—</div>
+        </div>
+
+        <div class="prob-section">
+          <h4>Churn Probability</h4>
+          <div class="prob-track">
+            <div class="prob-fill" id="prob-fill" style="width:0%"></div>
+          </div>
+          <div class="prob-labels">
+            <span>Low Risk</span>
+            <span id="prob-pct" style="font-weight:700;color:var(--text);">—</span>
+            <span>High Risk</span>
+          </div>
+        </div>
+
+        <div class="meta-grid">
+          <div class="meta-item">
+            <div class="key">Risk Level</div>
+            <div class="val" id="risk-level">—</div>
+          </div>
+          <div class="meta-item">
+            <div class="key">Confidence</div>
+            <div class="val" id="confidence">—</div>
+          </div>
+          <div class="meta-item">
+            <div class="key">Model</div>
+            <div class="val" style="font-size:0.82rem;">Gradient Boosting</div>
+          </div>
+          <div class="meta-item">
+            <div class="key">Model ROC-AUC</div>
+            <div class="val">85.3%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── TAB SWITCHING ── */
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  event.target.classList.add('active');
+}
+
+/* ── TOGGLE BUTTONS ── */
+function toggleCard(group, field, value) {
+  document.getElementById(field).value = value;
+  document.getElementById(group + '-yes').classList.toggle('selected', value === 1);
+  document.getElementById(group + '-no').classList.toggle('selected', value === 0);
+}
+
+/* ── CHART DEFAULTS ── */
+Chart.defaults.color = '#64748b';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
+const PALETTE = ['#6366f1','#8b5cf6','#a78bfa','#c4b5fd','#ddd6fe','#ede9fe','#f5f3ff'];
+const DOUGHNUT_COLORS = ['#22c55e','#ef4444'];
+
+function makeChart(id, type, labels, data, opts = {}) {
+  const ctx = document.getElementById(id).getContext('2d');
+  return new Chart(ctx, {
+    type,
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: opts.colors || PALETTE,
+        borderColor: opts.border || 'transparent',
+        borderWidth: opts.borderWidth || 0,
+        borderRadius: type === 'bar' ? 6 : 0,
+        hoverOffset: type === 'doughnut' ? 8 : 0,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: opts.legend !== false,
+          position: opts.legendPos || 'bottom',
+          labels: { padding: 16, font: { family: 'Inter', size: 12 }, color: '#94a3b8', boxWidth: 12 }
+        },
+        tooltip: { backgroundColor: '#1e293b', bodyFont: { family: 'Inter' }, titleFont: { family: 'Inter', weight: '700' }, padding: 12, cornerRadius: 8 }
+      },
+      scales: type === 'bar' ? {
+        x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { font: { family: 'Inter', size: 11 } } }
+      } : {},
+      ...opts.extra
+    }
+  });
+}
+
+/* ── LOAD DASHBOARD ── */
+async function loadDashboard() {
+  try {
+    const r = await fetch('/dashboard/data');
+    const d = await r.json();
+
+    // Stat cards
+    const o = d.overview;
+    document.getElementById('stat-total').textContent   = o.total_customers.toLocaleString();
+    document.getElementById('stat-churn').textContent   = o.churn_rate + '%';
+    document.getElementById('stat-churned-count').textContent = o.churned.toLocaleString() + ' customers churned';
+    document.getElementById('stat-stay').textContent    = (100 - o.churn_rate).toFixed(1) + '%';
+    document.getElementById('stat-stayed-count').textContent  = o.stayed.toLocaleString() + ' customers retained';
+    document.getElementById('stat-countries').textContent = o.countries;
+
+    // Churn doughnut
+    makeChart('churnChart', 'doughnut', d.churn_distribution.labels, d.churn_distribution.values,
+      { colors: DOUGHNUT_COLORS, legendPos: 'bottom' });
+
+    // Geography bar
+    makeChart('geoChart', 'bar', d.geography.labels, d.geography.values,
+      { colors: PALETTE, legend: false });
+
+    // Churn rate by geo
+    makeChart('geoChurnChart', 'bar', d.geography.labels, d.geography.churn_rates,
+      { colors: ['#ef4444','#f97316','#f59e0b'], legend: false });
+
+    // Age histogram
+    makeChart('ageChart', 'bar', d.age_distribution.labels, d.age_distribution.values,
+      { colors: PALETTE, legend: false });
+
+    // Gender doughnut
+    makeChart('genderChart', 'doughnut', d.gender.labels, d.gender.values,
+      { colors: ['#8b5cf6','#6366f1'], legendPos: 'bottom' });
+
+    // Active members doughnut
+    makeChart('activeChart', 'doughnut', d.active_members.labels, d.active_members.values,
+      { colors: ['#22c55e','#64748b'], legendPos: 'bottom' });
+
+    // Balance bar
+    makeChart('balanceChart', 'bar', d.balance_distribution.labels, d.balance_distribution.values,
+      { colors: PALETTE, legend: false });
+
+    // Model table
+    const tbody = document.getElementById('modelTbody');
+    const best = d.models.reduce((a, b) => a.roc_auc > b.roc_auc ? a : b, d.models[0]);
+    d.models.sort((a,b) => b.roc_auc - a.roc_auc).forEach(m => {
+      const isBest = m.name === best.name;
+      const row = document.createElement('tr');
+      if (isBest) row.className = 'best-row';
+      row.innerHTML = `
+        <td style="font-weight:600">${m.name}</td>
+        <td>${metricBar(m.accuracy)}</td>
+        <td>${metricBar(m.precision)}</td>
+        <td>${metricBar(m.recall)}</td>
+        <td>${metricBar(m.f1)}</td>
+        <td>${metricBar(m.roc_auc)}</td>
+        <td>${isBest ? '<span class="badge badge-best">⭐ Best</span>' : ''}</td>
+      `;
+      tbody.appendChild(row);
+    });
+
+  } catch(e) {
+    console.error('Dashboard load error:', e);
+  }
+}
+
+function metricBar(val) {
+  return `<div class="metric-bar">
+    <div class="bar-track"><div class="bar-fill" style="width:${val}%"></div></div>
+    <span style="font-size:0.82rem;font-weight:600;min-width:40px;text-align:right">${val}%</span>
+  </div>`;
+}
+
+/* ── SUBMIT PREDICTION ── */
+async function submitPrediction() {
+  const btn  = document.getElementById('btn-predict');
+  const text = document.getElementById('btn-text');
+  const spin = document.getElementById('btn-spinner');
+
+  btn.disabled = true;
+  text.style.display = 'none';
+  spin.style.display = 'block';
+
+  try {
+    const payload = {
+      CreditScore:     parseInt(document.getElementById('CreditScore').value),
+      Geography:       document.getElementById('Geography').value,
+      Gender:          document.getElementById('Gender').value,
+      Age:             parseInt(document.getElementById('Age').value),
+      Tenure:          parseInt(document.getElementById('Tenure').value),
+      Balance:         parseFloat(document.getElementById('Balance').value) || 0,
+      NumOfProducts:   parseInt(document.getElementById('NumOfProducts').value),
+      HasCrCard:       parseInt(document.getElementById('HasCrCard').value),
+      IsActiveMember:  parseInt(document.getElementById('IsActiveMember').value),
+      EstimatedSalary: parseFloat(document.getElementById('EstimatedSalary').value) || 0,
+    };
+
+    const r   = await fetch('/predict', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const res = await r.json();
+
+    showResult(res);
+  } catch(e) {
+    alert('Prediction failed: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    text.style.display = 'inline';
+    spin.style.display = 'none';
+  }
+}
+
+function showResult(res) {
+  const isChurn   = res.prediction === 1;
+  const prob      = Math.round((res.churn_probability || 0) * 100);
+  const confidence = prob > 50 ? `${prob}% churn likely` : `${100-prob}% staying likely`;
+
+  // Verdict
+  const vCard = document.getElementById('verdict-card');
+  vCard.className = 'result-verdict ' + (isChurn ? 'churn' : 'stay');
+  document.getElementById('verdict-icon').textContent  = isChurn ? '⚠️' : '✅';
+  const vLabel = document.getElementById('verdict-label');
+  vLabel.textContent  = isChurn ? 'WILL CHURN' : 'WILL STAY';
+  vLabel.className    = 'verdict-label ' + (isChurn ? 'churn' : 'stay');
+  document.getElementById('verdict-msg').textContent   = res.message;
+
+  // Probability bar
+  const fill = document.getElementById('prob-fill');
+  fill.className = 'prob-fill ' + (isChurn ? 'churn' : 'stay');
+  setTimeout(() => { fill.style.width = prob + '%'; }, 50);
+  document.getElementById('prob-pct').textContent = prob + '%';
+
+  // Meta
+  document.getElementById('risk-level').textContent  = res.churn_risk || '—';
+  document.getElementById('confidence').textContent  = confidence;
+
+  // Show
+  document.getElementById('result-placeholder').style.display = 'none';
+  const content = document.getElementById('result-content');
+  content.style.display = 'block';
+  content.classList.remove('fade-in');
+  void content.offsetWidth;
+  content.classList.add('fade-in');
+}
+
+/* ── INIT ── */
+loadDashboard();
+</script>
+</body>
+</html>

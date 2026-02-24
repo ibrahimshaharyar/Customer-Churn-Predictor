@@ -1,17 +1,22 @@
 """
 FastAPI Application for Banking Customer Churn Prediction
 
-This API provides endpoints for:
-- Health check
-- Making churn predictions
-- Getting model information
-
-Author: Banking Churn MLOps Team
+Endpoints:
+- GET  /               → Serve HTML frontend
+- GET  /health         → Health check
+- GET  /model/info     → Model metadata
+- GET  /dashboard/data → Pre-aggregated EDA stats + model metrics
+- POST /predict        → Single customer churn prediction
+- POST /predict/batch  → Batch prediction
 """
 
 import sys
+import csv
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from collections import defaultdict
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
@@ -29,14 +34,21 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Initialize predictor (loaded once on startup)
+# Templates
+templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+# Globals
 predictor = None
+dashboard_cache = None
 
 
+# ─────────────────────────────────────────────
+# Startup
+# ─────────────────────────────────────────────
 @app.on_event("startup")
 async def startup_event():
-    """Initialize the predictor on app startup"""
-    global predictor
+    global predictor, dashboard_cache
+    # Load predictor
     try:
         logger.info("Initializing ChurnPredictor on app startup...")
         predictor = ChurnPredictor(model_name="Gradient_Boosting")
@@ -46,43 +58,148 @@ async def startup_event():
         logger.error(f"Failed to initialize predictor: {str(e)}")
         raise
 
+    # Pre-compute dashboard data
+    try:
+        dashboard_cache = compute_dashboard_data()
+        logger.info("✅ Dashboard data computed successfully")
+    except Exception as e:
+        logger.warning(f"Dashboard data computation failed: {str(e)}")
+        dashboard_cache = {}
 
-# Pydantic models for request/response validation
-class CustomerData(BaseModel):
-    """Customer data for churn prediction"""
-    CreditScore: int = Field(..., ge=300, le=850, description="Customer credit score (300-850)")
-    Geography: str = Field(..., pattern="^(France|Germany|Spain)$", description="Customer geography: France, Germany, or Spain")
-    Gender: str = Field(..., pattern="^(Female|Male)$", description="Customer gender: Female or Male")
-    Age: int = Field(..., ge=18, le=100, description="Customer age (18-100)")
-    Tenure: int = Field(..., ge=0, le=10, description="Years with the bank (0-10)")
-    Balance: float = Field(..., ge=0, description="Account balance")
-    NumOfProducts: int = Field(..., ge=1, le=4, description="Number of products (1-4)")
-    HasCrCard: int = Field(..., ge=0, le=1, description="Has credit card (0=No, 1=Yes)")
-    IsActiveMember: int = Field(..., ge=0, le=1, description="Is active member (0=No, 1=Yes)")
-    EstimatedSalary: float = Field(..., ge=0, description="Estimated salary")
-    
-    model_config = {
-        "json_schema_extra": {
-            "examples": [
-                {
-                    "CreditScore": 619,
-                    "Geography": "France",
-                    "Gender": "Female",
-                    "Age": 42,
-                    "Tenure": 2,
-                    "Balance": 0.00,
-                    "NumOfProducts": 1,
-                    "HasCrCard": 1,
-                    "IsActiveMember": 1,
-                    "EstimatedSalary": 101348.88
-                }
-            ]
-        }
+
+def compute_dashboard_data() -> dict:
+    """Read processed CSV and compute aggregated stats for the dashboard."""
+    csv_path = project_root / "data" / "processed" / "churn_cleaned.csv"
+    metrics_path = project_root / "artifacts" / "metrics" / "model_comparison.csv"
+
+    # ── Read dataset ──────────────────────────────────────────────────────────
+    churn_counts = defaultdict(int)          # {0: stayed, 1: churned}
+    geo_counts = defaultdict(int)
+    gender_counts = defaultdict(int)
+    active_counts = defaultdict(int)
+    age_buckets = {"18-30": 0, "31-40": 0, "41-50": 0, "51-60": 0, "61+": 0}
+    balance_buckets = {"Zero Balance": 0, "1-50k": 0, "50k-100k": 0, "100k-150k": 0, "150k+": 0}
+    geo_churn = defaultdict(lambda: {"total": 0, "churned": 0})
+    total = 0
+
+    with open(csv_path, newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            total += 1
+            exited = int(row["Exited"])
+            churn_counts[exited] += 1
+
+            geo = row["Geography"]
+            geo_counts[geo] += 1
+            geo_churn[geo]["total"] += 1
+            geo_churn[geo]["churned"] += exited
+
+            gender_counts[row["Gender"]] += 1
+            active_counts[int(row["IsActiveMember"])] += 1
+
+            age = int(row["Age"])
+            if age <= 30:
+                age_buckets["18-30"] += 1
+            elif age <= 40:
+                age_buckets["31-40"] += 1
+            elif age <= 50:
+                age_buckets["41-50"] += 1
+            elif age <= 60:
+                age_buckets["51-60"] += 1
+            else:
+                age_buckets["61+"] += 1
+
+            bal = float(row["Balance"])
+            if bal == 0:
+                balance_buckets["Zero Balance"] += 1
+            elif bal < 50000:
+                balance_buckets["1-50k"] += 1
+            elif bal < 100000:
+                balance_buckets["50k-100k"] += 1
+            elif bal < 150000:
+                balance_buckets["100k-150k"] += 1
+            else:
+                balance_buckets["150k+"] += 1
+
+    churn_rate = round(churn_counts[1] / total * 100, 1)
+
+    # Churn rate by geography
+    geo_churn_rate = {
+        g: round(v["churned"] / v["total"] * 100, 1)
+        for g, v in geo_churn.items()
+    }
+
+    # ── Read model metrics ────────────────────────────────────────────────────
+    models = []
+    try:
+        with open(metrics_path, newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                models.append({
+                    "name": row["Model"].replace("_", " "),
+                    "accuracy": round(float(row["Accuracy"]) * 100, 1),
+                    "precision": round(float(row["Precision"]) * 100, 1),
+                    "recall": round(float(row["Recall"]) * 100, 1),
+                    "f1": round(float(row["F1_Score"]) * 100, 1),
+                    "roc_auc": round(float(row["ROC_AUC"]) * 100, 1),
+                })
+    except Exception:
+        models = []
+
+    return {
+        "overview": {
+            "total_customers": total,
+            "churn_rate": churn_rate,
+            "stayed": churn_counts[0],
+            "churned": churn_counts[1],
+            "countries": len(geo_counts),
+        },
+        "churn_distribution": {
+            "labels": ["Stayed", "Churned"],
+            "values": [churn_counts[0], churn_counts[1]],
+        },
+        "geography": {
+            "labels": list(geo_counts.keys()),
+            "values": list(geo_counts.values()),
+            "churn_rates": [geo_churn_rate.get(g, 0) for g in geo_counts.keys()],
+        },
+        "gender": {
+            "labels": list(gender_counts.keys()),
+            "values": list(gender_counts.values()),
+        },
+        "age_distribution": {
+            "labels": list(age_buckets.keys()),
+            "values": list(age_buckets.values()),
+        },
+        "balance_distribution": {
+            "labels": list(balance_buckets.keys()),
+            "values": list(balance_buckets.values()),
+        },
+        "active_members": {
+            "labels": ["Active", "Inactive"],
+            "values": [active_counts[1], active_counts[0]],
+        },
+        "models": models,
     }
 
 
+# ─────────────────────────────────────────────
+# Pydantic models
+# ─────────────────────────────────────────────
+class CustomerData(BaseModel):
+    CreditScore: int = Field(..., ge=300, le=850)
+    Geography: str = Field(..., pattern="^(France|Germany|Spain)$")
+    Gender: str = Field(..., pattern="^(Female|Male)$")
+    Age: int = Field(..., ge=18, le=100)
+    Tenure: int = Field(..., ge=0, le=10)
+    Balance: float = Field(..., ge=0)
+    NumOfProducts: int = Field(..., ge=1, le=4)
+    HasCrCard: int = Field(..., ge=0, le=1)
+    IsActiveMember: int = Field(..., ge=0, le=1)
+    EstimatedSalary: float = Field(..., ge=0)
+
+
 class PredictionResponse(BaseModel):
-    """Prediction response"""
     prediction: int
     prediction_label: str
     churn_probability: Optional[float]
@@ -91,96 +208,76 @@ class PredictionResponse(BaseModel):
 
 
 class ModelInfo(BaseModel):
-    """Model information response"""
     model_name: str
     model_type: str
     features: list
     status: str
 
 
-# API Endpoints
-@app.get("/")
-async def root():
-    """Welcome endpoint"""
-    return {
-        "message": "Banking Customer Churn Prediction API",
-        "version": "1.0.0",
-        "documentation": "/docs"
-    }
+# ─────────────────────────────────────────────
+# Routes
+# ─────────────────────────────────────────────
+@app.get("/", response_class=HTMLResponse)
+async def serve_frontend(request: Request):
+    """Serve the main HTML frontend."""
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
     if predictor is None:
         raise HTTPException(status_code=503, detail="Model not initialized")
-    
     return {
         "status": "healthy",
         "model_loaded": predictor.model is not None,
         "preprocessors_loaded": (
-            predictor.scaler is not None and 
-            predictor.label_encoder_geo is not None and
-            predictor.label_encoder_gender is not None
-        )
+            predictor.scaler is not None
+            and predictor.label_encoder_geo is not None
+            and predictor.label_encoder_gender is not None
+        ),
     }
 
 
 @app.get("/model/info", response_model=ModelInfo)
 async def get_model_info():
-    """Get information about the loaded model"""
     if predictor is None:
         raise HTTPException(status_code=503, detail="Model not initialized")
-    
     return ModelInfo(
         model_name=predictor.model_name,
         model_type="Gradient Boosting Classifier",
         features=predictor.expected_features,
-        status="loaded"
+        status="loaded",
     )
+
+
+@app.get("/dashboard/data")
+async def get_dashboard_data():
+    """Return pre-aggregated EDA statistics and model metrics."""
+    if dashboard_cache is None:
+        raise HTTPException(status_code=503, detail="Dashboard data not ready")
+    return dashboard_cache
 
 
 @app.post("/predict", response_model=PredictionResponse)
 async def predict_churn(customer: CustomerData):
-    """
-    Predict customer churn
-    
-    Args:
-        customer: Customer data
-        
-    Returns:
-        PredictionResponse: Prediction result with probability and risk category
-    """
     if predictor is None:
         raise HTTPException(status_code=503, detail="Model not initialized")
-    
     try:
-        # Convert Pydantic model to dict
         customer_dict = customer.dict()
-        
-        logger.info(f"Received prediction request for customer: {customer_dict}")
-        
-        # Make prediction
+        logger.info(f"Prediction request: {customer_dict}")
         result = predictor.predict_single(customer_dict)
-        
-        # Format response message
-        if result['prediction'] == 1:
-            message = f"Customer is likely to CHURN. {result['churn_risk']} - take action!"
-        else:
-            message = f"Customer is likely to STAY. {result['churn_risk']} - continue engagement."
-        
-        response = PredictionResponse(
-            prediction=result['prediction'],
-            prediction_label=result['prediction_label'],
-            churn_probability=result['churn_probability'],
-            churn_risk=result['churn_risk'],
-            message=message
+        message = (
+            f"Customer is likely to CHURN. {result['churn_risk']} - take action!"
+            if result["prediction"] == 1
+            else f"Customer is likely to STAY. {result['churn_risk']} - continue engagement."
         )
-        
-        logger.info(f"Prediction result: {result['prediction_label']} ({result['churn_probability']:.2%})")
-        
-        return response
-        
+        return PredictionResponse(
+            prediction=result["prediction"],
+            prediction_label=result["prediction_label"],
+            churn_probability=result["churn_probability"],
+            churn_risk=result["churn_risk"],
+            message=message,
+        )
     except Exception as e:
         logger.error(f"Prediction failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
@@ -188,55 +285,35 @@ async def predict_churn(customer: CustomerData):
 
 @app.post("/predict/batch")
 async def predict_batch(customers: List[CustomerData]):
-    """
-    Predict churn for multiple customers
-    
-    Args:
-        customers: List of customer data
-        
-    Returns:
-        List of predictions
-    """
     if predictor is None:
         raise HTTPException(status_code=503, detail="Model not initialized")
-    
     try:
         results = []
-        
         for i, customer in enumerate(customers):
-            customer_dict = customer.dict()
-            result = predictor.predict_single(customer_dict)
-            
+            result = predictor.predict_single(customer.dict())
             results.append({
                 "customer_index": i,
-                "prediction": result['prediction'],
-                "prediction_label": result['prediction_label'],
-                "churn_probability": result['churn_probability'],
-                "churn_risk": result['churn_risk']
+                "prediction": result["prediction"],
+                "prediction_label": result["prediction_label"],
+                "churn_probability": result["churn_probability"],
+                "churn_risk": result["churn_risk"],
             })
-        
-        logger.info(f"Batch prediction completed for {len(customers)} customers")
-        
-        return {
-            "total_customers": len(customers),
-            "predictions": results
-        }
-        
+        return {"total_customers": len(customers), "predictions": results}
     except Exception as e:
         logger.error(f"Batch prediction failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Batch prediction failed: {str(e)}")
 
 
-# Run the app
+# ─────────────────────────────────────────────
+# Run
+# ─────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
-    
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("🚀 Starting Banking Customer Churn Prediction API")
-    print("="*80)
-    print("\n📍 API will be available at: http://localhost:8000")
-    print("📖 API documentation: http://localhost:8000/docs")
-    print("📊 Health check: http://localhost:8000/health")
-    print("\n" + "="*80)
-    
+    print("=" * 80)
+    print("\n📍 API: http://localhost:8000")
+    print("📖 Docs: http://localhost:8000/docs")
+    print("📊 Dashboard: http://localhost:8000")
+    print("=" * 80)
     uvicorn.run(app, host="0.0.0.0", port=8000)
